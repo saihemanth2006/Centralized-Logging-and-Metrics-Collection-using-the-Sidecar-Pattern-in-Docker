@@ -1,0 +1,1 @@
+# Centralized-Logging-and-Metrics-Collection-using-the-Sidecar-Pattern-in-Docker
