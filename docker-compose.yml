@@ -1,0 +1,264 @@
+version: '3.8'
+
+services:
+  # ==================== Log Aggregator ====================
+  log-aggregator:
+    build: ./log-aggregator
+    container_name: log-aggregator
+    ports:
+      - "${LOG_AGGREGATOR_PORT:-8000}:8080"
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # ==================== User Service ====================
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    ports:
+      - "${USER_SERVICE_PORT:-8081}:8080"
+    volumes:
+      - user-logs:/logs
+    environment:
+      - SERVICE_NAME=user-service
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  user-service-logging-sidecar:
+    build: ./logging-sidecar
+    container_name: user-service-logging-sidecar
+    environment:
+      - SERVICE_NAME=user-service
+      - AGGREGATOR_URL=${LOG_AGGREGATOR_URL:-http://log-aggregator:8080/logs}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    volumes:
+      - user-logs:/logs:ro  # Read-only access
+    networks:
+      - app-network
+    depends_on:
+      log-aggregator:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+  user-service-metrics-sidecar:
+    build: ./metrics-sidecar
+    container_name: user-service-metrics-sidecar
+    environment:
+      - SERVICE_NAME=user-service
+      - APP_SERVICE_URL=http://user-service:8080
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    ports:
+      - "${USER_METRICS_PORT:-9091}:9090"
+    networks:
+      - app-network
+    depends_on:
+      user-service:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+  # ==================== Product Service ====================
+  product-service:
+    build: ./product-service
+    container_name: product-service
+    ports:
+      - "${PRODUCT_SERVICE_PORT:-8082}:8080"
+    volumes:
+      - product-logs:/logs
+    environment:
+      - SERVICE_NAME=product-service
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  product-service-logging-sidecar:
+    build: ./logging-sidecar
+    container_name: product-service-logging-sidecar
+    environment:
+      - SERVICE_NAME=product-service
+      - AGGREGATOR_URL=${LOG_AGGREGATOR_URL:-http://log-aggregator:8080/logs}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    volumes:
+      - product-logs:/logs:ro  # Read-only access
+    networks:
+      - app-network
+    depends_on:
+      log-aggregator:
+        condition: service_healthy
+      product-service:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+  product-service-metrics-sidecar:
+    build: ./metrics-sidecar
+    container_name: product-service-metrics-sidecar
+    environment:
+      - SERVICE_NAME=product-service
+      - APP_SERVICE_URL=http://product-service:8080
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    ports:
+      - "${PRODUCT_METRICS_PORT:-9092}:9090"
+    networks:
+      - app-network
+    depends_on:
+      product-service:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+  # ==================== Order Service ====================
+  order-service:
+    build: ./order-service
+    container_name: order-service
+    ports:
+      - "${ORDER_SERVICE_PORT:-8083}:8080"
+    volumes:
+      - order-logs:/logs
+    environment:
+      - SERVICE_NAME=order-service
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  order-service-logging-sidecar:
+    build: ./logging-sidecar
+    container_name: order-service-logging-sidecar
+    environment:
+      - SERVICE_NAME=order-service
+      - AGGREGATOR_URL=${LOG_AGGREGATOR_URL:-http://log-aggregator:8080/logs}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    volumes:
+      - order-logs:/logs:ro  # Read-only access
+    networks:
+      - app-network
+    depends_on:
+      log-aggregator:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+  order-service-metrics-sidecar:
+    build: ./metrics-sidecar
+    container_name: order-service-metrics-sidecar
+    environment:
+      - SERVICE_NAME=order-service
+      - APP_SERVICE_URL=http://order-service:8080
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+    ports:
+      - "${ORDER_METRICS_PORT:-9093}:9090"
+    networks:
+      - app-network
+    depends_on:
+      order-service:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  user-logs:
+  product-logs:
+  order-logs:
